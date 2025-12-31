@@ -15,6 +15,28 @@ function showToast(message, type = 'info') {
   }, 3000);
 }
 
+// Normalize verdict + score into consistent badge/icon colors
+function getRiskMeta({ score, verdict }) {
+  const verdictNormalized = (verdict || '').toLowerCase();
+
+  if (verdictNormalized === 'safe') {
+    return { riskClass: 'low-risk', riskIcon: '✅' };
+  }
+
+  if (['suspicious', 'scam', 'fraud', 'phishing', 'danger'].includes(verdictNormalized)) {
+    return { riskClass: 'high-risk', riskIcon: '🚨' };
+  }
+
+  if (['warning', 'medium', 'moderate'].includes(verdictNormalized)) {
+    return { riskClass: 'medium-risk', riskIcon: '⚠️' };
+  }
+
+  const numericScore = Number(score) || 0;
+  if (numericScore >= 70) return { riskClass: 'high-risk', riskIcon: '🚨' };
+  if (numericScore >= 30) return { riskClass: 'medium-risk', riskIcon: '⚠️' };
+  return { riskClass: 'low-risk', riskIcon: '✅' };
+}
+
 async function loadHistory() {
   const tbody = document.getElementById('historyTableBody');
   tbody.innerHTML = '<tr><td colspan="5" class="loading-cell"><div class="spinner"></div> Loading history...</td></tr>';
@@ -38,9 +60,14 @@ function updateStats() {
   if (!statsDiv) return;
   
   const total = _historyData.length;
-  const highRisk = _historyData.filter(r => r.score >= 70).length;
-  const mediumRisk = _historyData.filter(r => r.score >= 30 && r.score < 70).length;
-  const lowRisk = _historyData.filter(r => r.score < 30).length;
+  const riskGroups = _historyData.reduce((acc, record) => {
+    const { riskClass } = getRiskMeta(record);
+    acc[riskClass] = (acc[riskClass] || 0) + 1;
+    return acc;
+  }, {});
+  const highRisk = riskGroups['high-risk'] || 0;
+  const mediumRisk = riskGroups['medium-risk'] || 0;
+  const lowRisk = riskGroups['low-risk'] || 0;
   
   statsDiv.innerHTML = `
     <div class="stat-item" style="--index: 0"><span class="stat-label">Total Scans</span> <span class="stat-value">${total}</span></div>
@@ -99,7 +126,7 @@ function renderTable() {
   }
 
   filtered.forEach((record, index) => {
-    const riskClass = record.score >= 70 ? 'high-risk' : record.score >= 30 ? 'medium-risk' : 'low-risk';
+    const { riskClass } = getRiskMeta(record);
     const tr = document.createElement('tr');
     tr.className = 'table-row';
     tr.style.animationDelay = `${index * 0.05}s`;

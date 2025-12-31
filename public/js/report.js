@@ -21,6 +21,28 @@ function isValidURL(string) {
   }
 }
 
+// Normalize verdict + score into consistent badge/icon colors
+function getRiskMeta({ score, verdict }) {
+  const verdictNormalized = (verdict || '').toLowerCase();
+
+  if (verdictNormalized === 'safe') {
+    return { riskClass: 'low-risk', riskIcon: '✅' };
+  }
+
+  if (['suspicious', 'scam', 'fraud', 'phishing', 'danger'].includes(verdictNormalized)) {
+    return { riskClass: 'high-risk', riskIcon: '🚨' };
+  }
+
+  if (['warning', 'medium', 'moderate'].includes(verdictNormalized)) {
+    return { riskClass: 'medium-risk', riskIcon: '⚠️' };
+  }
+
+  const numericScore = Number(score) || 0;
+  if (numericScore >= 70) return { riskClass: 'high-risk', riskIcon: '🚨' };
+  if (numericScore >= 30) return { riskClass: 'medium-risk', riskIcon: '⚠️' };
+  return { riskClass: 'low-risk', riskIcon: '✅' };
+}
+
 function updateCharCounter() {
   const content = document.getElementById('reportContent').value;
   const counter = document.getElementById('charCounter');
@@ -73,8 +95,7 @@ async function submitReport() {
       throw new Error(data.error || 'Scan failed');
     }
     
-    const riskClass = data.score >= 70 ? 'high-risk' : data.score >= 30 ? 'medium-risk' : 'low-risk';
-    const riskIcon = data.score >= 70 ? '🚨' : data.score >= 30 ? '⚠️' : '✅';
+    const { riskClass, riskIcon } = getRiskMeta(data);
     
     resultDiv.innerHTML = `
       <div class="success-message">

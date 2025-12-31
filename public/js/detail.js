@@ -12,6 +12,28 @@ function showToast(message, type = 'info') {
   }, 3000);
 }
 
+// Normalize verdict + score into consistent badge/icon colors
+function getRiskMeta({ score, verdict }) {
+  const verdictNormalized = (verdict || '').toLowerCase();
+
+  if (verdictNormalized === 'safe') {
+    return { riskClass: 'low-risk', riskIcon: '✅' };
+  }
+
+  if (['suspicious', 'scam', 'fraud', 'phishing', 'danger'].includes(verdictNormalized)) {
+    return { riskClass: 'high-risk', riskIcon: '🚨' };
+  }
+
+  if (['warning', 'medium', 'moderate'].includes(verdictNormalized)) {
+    return { riskClass: 'medium-risk', riskIcon: '⚠️' };
+  }
+
+  const numericScore = Number(score) || 0;
+  if (numericScore >= 70) return { riskClass: 'high-risk', riskIcon: '🚨' };
+  if (numericScore >= 30) return { riskClass: 'medium-risk', riskIcon: '⚠️' };
+  return { riskClass: 'low-risk', riskIcon: '✅' };
+}
+
 async function loadDetail() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id');
@@ -39,8 +61,7 @@ async function loadDetail() {
     }
     
     const record = await resp.json();
-    const riskClass = record.score >= 70 ? 'high-risk' : record.score >= 30 ? 'medium-risk' : 'low-risk';
-    const riskIcon = record.score >= 70 ? '🚨' : record.score >= 30 ? '⚠️' : '✅';
+    const { riskClass, riskIcon } = getRiskMeta(record);
     
     detailsDiv.innerHTML = `
       <div class="detail-header">
