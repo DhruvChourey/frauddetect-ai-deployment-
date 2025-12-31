@@ -1,0 +1,55 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>FraudShield AI - Home</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <div class="animated-bg">
+    <div class="circle circle-1"></div>
+    <div class="circle circle-2"></div>
+    <div class="circle circle-3"></div>
+  </div>
+  <header>
+    <div class="header-content">
+      <h1>
+        <span class="logo-icon">🛡️</span>
+        <span class="logo-text">FraudShield AI</span>
+        <span class="pulse-badge">LIVE</span>
+      </h1>
+      <nav>
+        <a href="./index.html" class="nav-link active">🏠 Home</a>
+        <a href="./history.html" class="nav-link">📊 History</a>
+        <a href="./report.html" class="nav-link">📝 Report</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <div class="progress-bar" id="progressBar"></div>
+    <section class="card card-animated">
+      <div class="card-glow"></div>
+      <h2>🔍 Scan text or URL</h2>
+      <label for="scanType">Select scan type:</label>
+      <select id="scanType">
+        <option value="text">Scam / Phishing text</option>
+        <option value="news">News article</option>
+        <option value="url">Website URL</option>
+      </select>
+      <label for="inputContent">Paste message, news, or URL:</label>
+      <div class="textarea-wrapper">
+        <textarea id="inputContent" rows="8" placeholder="Paste suspicious content here..."></textarea>
+        <div class="char-counter" id="charCounter">0 characters</div>
+      </div>
+      <div class="button-group">
+        <button id="scanBtn">Scan Now</button>
+        <button onclick="clearForm()" class="btn-secondary">Clear</button>
+      </div>
+      <div class="help-text">⌨️ Tip: Press Ctrl+Enter to scan</div>
+      <div id="result" class="result"></div>
+    </section>
+  </main>
+  <script src="./js/main.js"></script>
+</body>
+</html>

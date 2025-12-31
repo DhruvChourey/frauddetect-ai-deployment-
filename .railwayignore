@@ -1,0 +1,11 @@
+# Railway ignore file
+.env
+.env.local
+.env.sample
+node_modules/
+npm-debug.log
+yarn-error.log
+.DS_Store
+*.log
+.vscode/
+.idea/
