@@ -118,16 +118,16 @@ async function callProvider({ type, content, url }) {
   if (provider === 'mock') {
     const lowered = (content || '').toLowerCase();
     let verdict = 'safe';
-    let score = 90;
+    let score = 10;
     let reason = 'Mocked response';
     let category = type;
     if (lowered.includes('prize') || lowered.includes('won') || lowered.includes('click') || lowered.includes('otp') || lowered.includes('bank') || lowered.includes('urgent')) {
       verdict = 'scam';
-      score = 10;
+      score = 90;
       reason = 'Mocked: contains common scam keywords';
     } else if (lowered.startsWith('http') || lowered.includes('http')) {
       verdict = 'suspicious';
-      score = 40;
+      score = 60;
       reason = 'Mocked: suspicious URL detected';
     }
     return { verdict, score, category, reason, suggestedSources: [] };
@@ -143,7 +143,7 @@ async function callProvider({ type, content, url }) {
     const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp';
     // MINIMAL prompt - only ~50 tokens to use 1 API token per search
     const contentPreview = content.length > 500 ? content.substring(0, 500) + '...' : content;
-    const prompt = `Analyze this for scams/phishing/fake-news: "${contentPreview}". Respond JSON only: {verdict:"scam"|"safe"|"suspicious",score:0-100,reason:"brief explanation",category:"${type}"}`;
+    const prompt = `Analyze this for scams/phishing/fake-news: "${contentPreview}". Respond JSON only: {verdict:"scam"|"safe"|"suspicious",score:0-100,reason:"brief explanation",category:"${type}"}. Note: score 0=completely safe, 100=maximum risk/danger.`;
     const urlApi = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
     try {
@@ -218,7 +218,7 @@ async function callProvider({ type, content, url }) {
     if (!key) {
       return { verdict: 'error', score: 0, category: 'configuration', reason: 'OPENAI_API_KEY is not configured on the server.', suggestedSources: [] };
     }
-    const system = 'You are FraudShield AI, an expert in detecting scams, phishing, and fake news. Respond with a JSON object only.';
+    const system = 'You are FraudShield AI, an expert in detecting scams, phishing, and fake news. Respond with a JSON object only with format: {verdict:"scam"|"safe"|"suspicious",score:0-100,reason:"brief explanation",category:"<type>"}. Important: score represents risk level where 0=completely safe, 100=maximum risk/danger.';
     const user = `Type: ${type}\nURL: ${url || 'N/A'}\nContent: ${content}`;
     try {
       const resp = await fetch('https://api.openai.com/v1/chat/completions', {
