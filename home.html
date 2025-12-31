@@ -1,0 +1,547 @@
+import React, { useState, useEffect } from 'react';
+import { AlertCircle, CheckCircle, Shield, Database, Search, Zap, Info, Globe, FileText, XCircle } from 'lucide-react';
+
+export default function FakeNewsDetector() {
+  const [message, setMessage] = useState('');
+  const [analyzing, setAnalyzing] = useState(false);
+  const [result, setResult] = useState(null);
+  const [stats, setStats] = useState({ totalChecked: 0, fakeDetected: 0 });
+  const [apiKey, setApiKey] = useState('');
+  const [showApiInput, setShowApiInput] = useState(false);
+  const [analysisStep, setAnalysisStep] = useState('');
+
+  useEffect(() => {
+    loadStats();
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (savedKey) setApiKey(savedKey);
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      const keys = await window.storage.list('news:', true);
+      if (keys && keys.keys) {
+        const fakeCount = keys.keys.filter(k => k.includes(':fake')).length;
+        setStats({
+          totalChecked: keys.keys.length,
+          fakeDetected: fakeCount
+        });
+      }
+    } catch (err) {
+      console.log('Stats loading...');
+    }
+  };
+
+  const saveApiKey = () => {
+    if (!apiKey.trim()) {
+      alert('Please enter a valid API key');
+      return;
+    }
+    localStorage.setItem('gemini_api_key', apiKey.trim());
+    setShowApiInput(false);
+    alert('✅ API Key saved! Fact-checking enabled.');
+  };
+
+  const analyzeMessage = async () => {
+    if (!message.trim()) {
+      alert('Please enter text to verify');
+      return;
+    }
+
+    setAnalyzing(true);
+    setResult(null);
+    setAnalysisStep('Starting verification...');
+
+    try {
+      // Check cache first
+      setAnalysisStep('Checking database...');
+      const messageHash = btoa(message.trim().toLowerCase()).substring(0, 50);
+      
+      try {
+        const stored = await window.storage.get(`news:${messageHash}`, true);
+        if (stored) {
+          const cached = JSON.parse(stored.value);
+          setResult({
+            ...cached,
+            cached: true,
+            checkCount: cached.checkCount + 1
+          });
+          
+          await window.storage.set(`news:${messageHash}`, JSON.stringify({
+            ...cached,
+            checkCount: cached.checkCount + 1,
+            lastChecked: new Date().toISOString()
+          }), true);
+          
+          setAnalyzing(false);
+          setAnalysisStep('');
+          loadStats();
+          return;
+        }
+      } catch (err) {
+        // Continue
+      }
+
+      const currentApiKey = apiKey || localStorage.getItem('gemini_api_key');
+      
+      if (!currentApiKey) {
+        setResult({
+          credibility: 'UNKNOWN',
+          score: 0,
+          verdict: 'Cannot verify without API key',
+          explanation: 'Add your Google Gemini API key to enable AI-powered fact-checking and news verification.',
+          sources: [],
+          claims: [],
+          needsApiKey: true
+        });
+        setShowApiInput(true);
+        setAnalyzing(false);
+        setAnalysisStep('');
+        return;
+      }
+
+      // Step 1: Extract claims and analyze credibility
+      setAnalysisStep('AI analyzing content credibility...');
+      
+      const analysisResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${currentApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: `You are a fact-checker and misinformation expert. Analyze this text for credibility, regardless of whether it's harmful or not.
+
+Text to analyze:
+"${message}"
+
+Consider:
+1. Is this making factual claims that can be verified?
+2. Does it contain misinformation, fake news, or false claims?
+3. Are there credibility issues like lack of sources, sensationalism, or manipulation?
+4. Is the information likely true, false, misleading, or unverifiable?
+
+Respond ONLY with JSON (no markdown):
+{
+  "credibility": "<VERIFIED|MISLEADING|FALSE|UNVERIFIABLE>",
+  "credibilityScore": <0-100, where 100 is completely credible>,
+  "verdict": "<one-line verdict>",
+  "explanation": "<3-4 sentence detailed explanation>",
+  "factualClaims": ["<specific factual claim 1>", "<specific factual claim 2>"],
+  "credibilityIssues": ["<issue 1>", "<issue 2>", "<issue 3>"],
+  "contextNeeded": "<what additional context or verification is needed>"
+}
+
+Focus on FACTUAL ACCURACY, not harm. Even harmless false information should be flagged as false.`
+              }]
+            }],
+            generationConfig: { temperature: 0.2, maxOutputTokens: 800 }
+          })
+        }
+      );
+
+      if (!analysisResponse.ok) {
+        throw new Error('API request failed');
+      }
+
+      const analysisData = await analysisResponse.json();
+      const analysisText = analysisData.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (!analysisText) {
+        throw new Error('No analysis received');
+      }
+
+      const cleanedText = analysisText.replace(/```json|```/g, '').trim();
+      const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+      const analysis = JSON.parse(jsonMatch ? jsonMatch[0] : cleanedText);
+
+      // Step 2: Fact-check specific claims using web search
+      let verificationResults = [];
+      
+      if (analysis.factualClaims && analysis.factualClaims.length > 0) {
+        const claimsToCheck = analysis.factualClaims.slice(0, 2); // Check top 2 claims
+        
+        for (const claim of claimsToCheck) {
+          setAnalysisStep(`Verifying: "${claim.substring(0, 60)}..."`);
+          
+          try {
+            const verifyResponse = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 600,
+                messages: [{
+                  role: 'user',
+                  content: `Search the web and fact-check this claim: "${claim}"
+
+Provide:
+1. Is it TRUE, FALSE, MISLEADING, or UNVERIFIABLE?
+2. What do credible sources say?
+3. Cite specific sources if found.
+
+Be thorough and objective.`
+                }],
+                tools: [{
+                  type: 'web_search_20250305',
+                  name: 'web_search'
+                }]
+              })
+            });
+
+            if (verifyResponse.ok) {
+              const verifyData = await verifyResponse.json();
+              const verificationText = verifyData.content
+                .filter(item => item.type === 'text')
+                .map(item => item.text)
+                .join(' ');
+
+              verificationResults.push({
+                claim: claim,
+                verification: verificationText.substring(0, 400),
+                checked: true
+              });
+            }
+          } catch (err) {
+            console.log('Verification failed for claim:', claim);
+          }
+        }
+      }
+
+      // Step 3: Compile final result
+      setAnalysisStep('Finalizing credibility assessment...');
+
+      const finalResult = {
+        credibility: analysis.credibility || 'UNVERIFIABLE',
+        score: analysis.credibilityScore || 50,
+        verdict: analysis.verdict || 'Credibility unclear',
+        explanation: analysis.explanation || 'Analysis completed.',
+        claims: analysis.factualClaims || [],
+        issues: analysis.credibilityIssues || [],
+        context: analysis.contextNeeded || '',
+        verifications: verificationResults,
+        hasVerification: verificationResults.length > 0,
+        cached: false,
+        checkCount: 1,
+        timestamp: new Date().toISOString()
+      };
+
+      await window.storage.set(`news:${messageHash}`, JSON.stringify(finalResult), true);
+      setResult(finalResult);
+      loadStats();
+
+    } catch (error) {
+      console.error('Error:', error);
+      setResult({
+        credibility: 'ERROR',
+        score: 0,
+        verdict: 'Analysis failed',
+        explanation: `Unable to analyze: ${error.message}. Please check your API key and try again.`,
+        issues: ['API error occurred', 'Check your Gemini API key', 'Ensure internet connection'],
+        claims: [],
+        verifications: []
+      });
+    }
+
+    setAnalyzing(false);
+    setAnalysisStep('');
+  };
+
+  const getCredibilityColor = (credibility) => {
+    const colors = {
+      'VERIFIED': 'text-green-600 bg-green-50 border-green-300',
+      'MISLEADING': 'text-orange-600 bg-orange-50 border-orange-300',
+      'FALSE': 'text-red-600 bg-red-50 border-red-300',
+      'UNVERIFIABLE': 'text-gray-600 bg-gray-50 border-gray-300',
+      'UNKNOWN': 'text-blue-600 bg-blue-50 border-blue-300',
+      'ERROR': 'text-gray-600 bg-gray-50 border-gray-300'
+    };
+    return colors[credibility] || colors.UNKNOWN;
+  };
+
+  const getScoreColor = (score) => {
+    if (score >= 70) return 'text-green-600';
+    if (score >= 40) return 'text-orange-600';
+    return 'text-red-600';
+  };
+
+  const getCredibilityIcon = (credibility) => {
+    switch(credibility) {
+      case 'VERIFIED': return <CheckCircle className="w-10 h-10" />;
+      case 'FALSE': return <XCircle className="w-10 h-10" />;
+      case 'MISLEADING': return <AlertCircle className="w-10 h-10" />;
+      default: return <FileText className="w-10 h-10" />;
+    }
+  };
+
+  const samples = [
+    "Breaking: Scientists discover that Earth is actually flat. NASA has been hiding this for decades. Multiple researchers confirm.",
+    "Government announces all citizens will receive free iPhone 15 Pro. Registration starts tomorrow. Limited slots available.",
+    "Study shows that drinking 10 glasses of water daily prevents all diseases including cancer. Doctors confirm this ancient remedy works 100%."
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Shield className="w-8 h-8 text-blue-600" />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">TruthGuard</h1>
+                <p className="text-sm text-gray-600 flex items-center space-x-1">
+                  <Globe className="w-3 h-3" />
+                  <span>Fake News & Misinformation Detector</span>
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="hidden sm:flex space-x-4 text-sm">
+                <div className="text-center">
+                  <div className="font-bold text-blue-600">{stats.totalChecked}</div>
+                  <div className="text-gray-500 text-xs">Verified</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-bold text-red-600">{stats.fakeDetected}</div>
+                  <div className="text-gray-500 text-xs">Fake</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowApiInput(!showApiInput)}
+                className={`px-3 py-2 text-sm rounded-lg font-medium ${
+                  apiKey ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                }`}
+              >
+                {apiKey ? '✅ Active' : '⚙️ Setup'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* API Setup */}
+      {showApiInput && (
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
+            <h3 className="font-bold text-blue-900 mb-2 flex items-center space-x-2">
+              <Info className="w-5 h-5" />
+              <span>Enable Fact-Checking (Required)</span>
+            </h3>
+            <p className="text-sm text-blue-800 mb-3">
+              This app uses AI + web search to verify claims. You need a FREE Google Gemini API key.
+            </p>
+            <ol className="text-sm text-blue-800 mb-3 space-y-1 list-decimal list-inside">
+              <li>Get FREE key: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" className="underline font-semibold">aistudio.google.com/app/apikey</a></li>
+              <li>Click "Get API Key" → "Create in new project"</li>
+              <li>Copy and paste below:</li>
+            </ol>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="AIza..."
+                className="flex-1 px-3 py-2 border-2 border-blue-300 rounded-lg"
+              />
+              <button
+                onClick={saveApiKey}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              >
+                Enable
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Progress */}
+      {analysisStep && (
+        <div className="max-w-4xl mx-auto px-4 pb-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center space-x-3">
+            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <div className="text-sm text-blue-900 font-medium">{analysisStep}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Main */}
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Verify News, Claims, or Forwarded Messages
+          </label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Paste any news article, claim, social media post, or forwarded message to check its credibility..."
+            className="w-full h-36 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+          />
+          
+          <div className="mt-3 mb-4 flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-gray-600">Try fake news example:</span>
+            {samples.map((sample, i) => (
+              <button
+                key={i}
+                onClick={() => setMessage(sample)}
+                className="text-xs px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-full transition"
+              >
+                Example {i + 1}
+              </button>
+            ))}
+          </div>
+          
+          <button
+            onClick={analyzeMessage}
+            disabled={analyzing || !message.trim()}
+            className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 transition flex items-center justify-center space-x-2"
+          >
+            {analyzing ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Verifying Credibility...</span>
+              </>
+            ) : (
+              <>
+                <Search className="w-5 h-5" />
+                <span>Check Credibility</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Results */}
+        {result && (
+          <div className="space-y-4">
+            {/* Main Verdict */}
+            <div className={`rounded-xl border-2 p-6 ${getCredibilityColor(result.credibility)}`}>
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  {getCredibilityIcon(result.credibility)}
+                  <div>
+                    <h2 className="text-3xl font-bold">{result.credibility}</h2>
+                    <p className="text-sm mt-1 opacity-90 font-medium">{result.verdict}</p>
+                    {result.cached && (
+                      <div className="flex items-center space-x-1 text-sm mt-1 opacity-75">
+                        <Database className="w-4 h-4" />
+                        <span>Checked {result.checkCount} times</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {!result.needsApiKey && (
+                  <div className="text-right">
+                    <div className={`text-4xl font-bold ${getScoreColor(result.score)}`}>
+                      {result.score}%
+                    </div>
+                    <div className="text-sm opacity-75">Credible</div>
+                  </div>
+                )}
+              </div>
+              <p className="text-lg leading-relaxed">{result.explanation}</p>
+            </div>
+
+            {/* Verification Results */}
+            {result.verifications?.length > 0 && (
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="font-bold text-gray-900 mb-4 flex items-center space-x-2">
+                  <Globe className="w-5 h-5 text-blue-600" />
+                  <span>Fact-Check Results from Web Sources</span>
+                </h3>
+                <div className="space-y-4">
+                  {result.verifications.map((v, i) => (
+                    <div key={i} className="border-l-4 border-blue-600 pl-4 py-2 bg-blue-50 rounded-r">
+                      <div className="font-medium text-gray-900 mb-2 text-sm">
+                        📋 Claim: "{v.claim}"
+                      </div>
+                      <div className="text-gray-800 text-sm leading-relaxed bg-white p-3 rounded">
+                        {v.verification}
+                      </div>
+                      {v.checked && (
+                        <div className="text-xs text-green-700 mt-2 flex items-center space-x-1">
+                          <CheckCircle className="w-3 h-3" />
+                          <span>Verified with online sources</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Credibility Issues */}
+            {result.issues?.length > 0 && (
+              <div className="bg-white rounded-xl shadow p-6">
+                <h3 className="font-bold text-gray-900 mb-3 flex items-center space-x-2">
+                  <AlertCircle className="w-5 h-5 text-orange-600" />
+                  <span>Credibility Concerns</span>
+                </h3>
+                <ul className="space-y-2">
+                  {result.issues.map((issue, i) => (
+                    <li key={i} className="flex items-start space-x-2">
+                      <span className="text-orange-500">⚠️</span>
+                      <span className="text-gray-700">{issue}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Context Needed */}
+            {result.context && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <h4 className="font-semibold text-blue-900 mb-2 flex items-center space-x-2">
+                  <Info className="w-4 h-4" />
+                  <span>Additional Context</span>
+                </h4>
+                <p className="text-sm text-blue-800">{result.context}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Info */}
+        {!result && (
+          <div className="bg-white rounded-xl shadow p-6">
+            <h3 className="font-bold text-gray-900 mb-4 flex items-center space-x-2">
+              <Shield className="w-5 h-5 text-blue-500" />
+              <span>How TruthGuard Works</span>
+            </h3>
+            <div className="grid sm:grid-cols-2 gap-4 text-sm text-gray-700">
+              <div className="flex items-start space-x-2">
+                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">1</div>
+                <p><strong>AI Analysis:</strong> Examines claims for factual accuracy</p>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">2</div>
+                <p><strong>Web Search:</strong> Verifies against news sources</p>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">3</div>
+                <p><strong>Credibility Score:</strong> Rates information reliability</p>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">4</div>
+                <p><strong>Source Check:</strong> Identifies issues and context</p>
+              </div>
+            </div>
+            
+            {!apiKey && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <strong>⚠️ Setup Required:</strong> Click "⚙️ Setup" above to add your API key and enable fact-checking.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      <footer className="text-center py-6 text-gray-600 text-sm">
+        <p>🛡️ Fight misinformation • Verify facts • Stop fake news</p>
+      </footer>
+    </div>
+  );
+}

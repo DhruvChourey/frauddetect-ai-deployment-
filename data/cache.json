@@ -1,0 +1,64 @@
+{
+  "4ed76248805e0908df4f6b380923e6c9": {
+    "verdict": "scam",
+    "score": 95,
+    "category": "scam",
+    "reason": "This message is a classic scam tactic. It is unsolicited and lacks crucial details such as the sender's identity, the specific bank or account credited, or the reason for the alleged credit. Scammers use such messages to create curiosity or urgency, often aiming to trick recipients into clicking malicious links (if present), replying with personal information, or calling a fake support number to 'verify' the transaction, which can lead to phishing, identity theft, or financial loss.",
+    "suggestedSources": [
+      "Your official bank's mobile app or website (access directly, not via any link in the message) to independently verify actual account activity.",
+      "Official bank customer service phone number (obtained from the bank's official website, not from the message itself) if you are concerned about potential impersonation.",
+      "Government consumer protection agencies or cybercrime reporting portals (e.g., National Cybercrime Reporting Portal in India) to report the attempted scam."
+    ]
+  },
+  "185c620b7f05075b7fd893d4af11a597": {
+    "verdict": "safe",
+    "score": 5,
+    "category": "scam",
+    "reason": "The phrase 'good morning' is a common greeting and is not inherently malicious. It does not contain any typical indicators of a scam such as requests for personal information, suspicious links, urgent demands, or unusual offers. While benign on its own, such a greeting can sometimes be used as an initial message in a broader scam attempt to establish contact or build rapport.",
+    "suggestedSources": []
+  },
+  "4dbe38ff239f6749cb052134e2c4abeb": {
+    "verdict": "scam",
+    "score": 98,
+    "category": "scam",
+    "reason": "This content describes a classic 'double your money' scheme, promising an unrealistic return of 100% in just three days. Such high returns in a very short timeframe with no legitimate underlying investment vehicle are a hallmark of investment fraud, Ponzi schemes, or outright scams designed to trick individuals into sending money with no intention of returning it or providing the promised profits. This is a clear 'too good to be true' scenario.",
+    "suggestedSources": [
+      "https://www.sebi.gov.in/ (Securities and Exchange Board of India - for investment-related advice and fraud reporting)",
+      "https://www.rbi.org.in/ (Reserve Bank of India - for general financial awareness and fraud alerts)",
+      "https://www.cybercrime.gov.in/ (National Cybercrime Reporting Portal, India)"
+    ]
+  },
+  "048e4904cb6fa3fed2582730857dc451": {
+    "verdict": "safe",
+    "score": 5,
+    "category": "scam",
+    "reason": "The phrase \"god bless you\" is a common expression of goodwill and does not contain any direct indicators of a scam, such as requests for personal information, suspicious links, or urgent calls to action. While it could be used as an innocuous filler in a broader scam attempt to build trust, the content itself, when isolated, is harmless and benign.",
+    "suggestedSources": []
+  },
+  "ba269d4c45ca1796a4619f5424e56265": {
+    "verdict": "suspicious",
+    "score": 98,
+    "category": "news",
+    "reason": "The content makes an extremely sensational, sexually explicit, and highly improbable claim involving prominent public figures (PM Modi, Elon Musk, Donald Trump). Such statements are characteristic of deliberate misinformation and fake news, designed to shock, mislead, or defame, and lack any credible basis. There is no verifiable evidence or reputable source that would ever report such an event.",
+    "suggestedSources": [
+      "For factual information regarding political figures and public personalities, consult reputable and established news organizations (e.g., Reuters, Associated Press, BBC News, The New York Times, The Wall Street Journal).",
+      "Always cross-reference extraordinary claims with multiple trustworthy sources.",
+      "Be skeptical of sensational headlines, especially those involving explicit or highly controversial content."
+    ]
+  },
+  "8d6827cc76abf158e9f3b17cb3cb87a0": {
+    "verdict": "suspicious",
+    "score": 30,
+    "reason": "The message is extremely short and lacks any context, making it impossible to determine intent. It could be a simple mistake, a test message, or the beginning of a scam. Further interaction or lack of it will determine the true nature."
+  },
+  "5dae2000719dd64fca83c6384915b0cf": {
+    "verdict": "suspicious",
+    "score": 75,
+    "reason": "The message is very short and lacks context. '3000 rs credit' could refer to a legitimate offer, but it's also a common tactic in phishing scams to entice users with a small, appealing amount. Without more information, it's impossible to confirm its legitimacy."
+  },
+  "044c7b7922652326d8029535f508f237": {
+    "verdict": "safe",
+    "score": 95,
+    "reason": "Legitimate Epic Games store URL."
+  }
+}

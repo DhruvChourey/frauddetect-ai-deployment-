@@ -1,0 +1,50 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>FraudShield AI - Report</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <div class="animated-bg">
+    <div class="circle circle-1"></div>
+    <div class="circle circle-2"></div>
+    <div class="circle circle-3"></div>
+  </div>
+  <header>
+    <div class="header-content">
+      <h1>
+        <span class="logo-icon">📝</span>
+        <span class="logo-text">Report Suspicious Content</span>
+      </h1>
+      <nav>
+        <a href="./index.html" class="nav-link">🏠 Home</a>
+        <a href="./history.html" class="nav-link">📊 History</a>
+        <a href="./report.html" class="nav-link active">📝 Report</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <section class="card card-animated">
+      <div class="card-glow"></div>
+      <p>Submit suspicious content to be scanned and stored in history.</p>
+      <label for="reportType">Type:</label>
+      <select id="reportType">
+        <option value="scam">Scam / Phishing text</option>
+        <option value="news">News article</option>
+        <option value="url">Website URL</option>
+      </select>
+      <label for="reportContent">Content:</label>
+      <div class="textarea-wrapper">
+        <textarea id="reportContent" rows="8"></textarea>
+        <div class="char-counter" id="charCounter">0 characters</div>
+      </div>
+      <button id="reportSubmitBtn">Submit & Scan</button>
+      <div class="help-text">⌨️ Tip: Press Ctrl+Enter to submit</div>
+      <div id="reportResult" class="result"></div>
+    </section>
+  </main>
+  <script src="./js/report.js"></script>
+</body>
+</html>

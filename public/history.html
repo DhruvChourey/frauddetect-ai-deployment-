@@ -1,0 +1,61 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>FraudShield AI - History</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <div class="animated-bg">
+    <div class="circle circle-1"></div>
+    <div class="circle circle-2"></div>
+    <div class="circle circle-3"></div>
+  </div>
+  <header>
+    <div class="header-content">
+      <h1>
+        <span class="logo-icon">📊</span>
+        <span class="logo-text">Scan History</span>
+      </h1>
+      <nav>
+        <a href="./index.html" class="nav-link">🏠 Home</a>
+        <a href="./history.html" class="nav-link active">📊 History</a>
+        <a href="./report.html" class="nav-link">📝 Report</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <section class="card card-animated">
+      <div class="card-glow"></div>
+      <div id="stats" class="stats-container"></div>
+      <div class="filters">
+        <input type="text" id="searchInput" placeholder="🔍 Search by text, verdict, or reason..." />
+        <select id="typeFilter">
+          <option value="all">All types</option>
+          <option value="news">News</option>
+          <option value="scam">Scam</option>
+          <option value="url">URL</option>
+        </select>
+        <button onclick="exportToCSV()" class="btn-secondary">📊 Export CSV</button>
+        <button id="clearHistoryBtn" class="btn-danger">Clear All</button>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th data-sort="timestamp">Timestamp ↕</th>
+              <th data-sort="type">Type ↕</th>
+              <th data-sort="score">Score ↕</th>
+              <th data-sort="verdict">Verdict ↕</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="./js/history.js"></script>
+</body>
+</html>
